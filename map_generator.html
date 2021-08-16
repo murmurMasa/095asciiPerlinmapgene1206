@@ -46,8 +46,145 @@ function noise(x, y, z) {
     var B = p[xi+1] + yi;
     var BA = p[B] + zi;
     var BB = p[B+1] + zi;
-    
+    //ノイズ生成
+    var a, b, a1, b1;
+    a1 = lerp(u, grad(p[AA], xf, yf,zf), grad(p[BA], xf-1, yf, zf));
+    b1 = lerp(u, grad(p[AB], xf, yf-1,zf), grad(p[BB], xf-1, yf-1, zf));
+    a = lerp(v, a1, b1);
+    a1 = lerp(u, grad(p[AA+1], xf, yf,zf-1), grad(p[BA+1], xf-1, yf, zf-1));
+    b1 = lerp(u, grad(p[AB+1], xf, yf-1,zf-1), grad(p[BB+1], xf-1, yf-1, zf-1));
+    b = lerp(v, a1, b1);
+    return lerp(w, a, b);    
 }
+
+function fade(t) {
+    //フェード関数(6t^5 - 15t^4 + 10t^3)  ノイズをなめらかにする
+    return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function lerp(t, a, b) {
+    //線形補完
+    return a + t * (b - a);
+}
+
+function grad(hash, x, y, z) { //疑似乱数の生成
+    //下位４ビットを取得
+    var h = hash & 15;
+    //ビットの値によって返す値を切り替える
+    var u = y;
+    if (h < 8) u = x;
+    var v = z;
+    if (h < 4) {
+        v = y;
+    } else if ((h == 12) || (h == 14)) {
+        v = x;
+    }
+    if (((h & 1) == 0)&&((h & 2) == 0)) {
+        return u + v;
+    } else if ((h & 1) == 0) {
+        return u - v;
+    } else if ((h & 2) == 0) {
+        return -u + v;
+    } else {
+        return -u - v;
+    }
+}
+
+function init() {
+    //ノイズの初期化
+    initNoise();
+    //キャンバスの取得
+    canvas = document.getElementById("map");    //キャンバスのID（183行目）
+    context = canvas.getContext("2d");          //キャンバスの描画機能を有効にする
+    //地形を作成
+    newMap();
+}
+
+function newMap() {
+    //新しい地形を作成
+    z = Math.random() * 10;                      //z座標は0～10の乱数
+    draw();
+}
+
+function draw() {
+    //サイズの取得
+    var size = 10;
+    if (document.getElementById("size_20").checked) size = 20;  //ラジオボタンの位置によって、サイズを10、20、または40に設定
+    if (document.getElementById("size_40").checked) size = 40;
+    //色の取得
+    var color = [];
+    for (var i=0; i<8; i++) {
+       color[i] = document.getElementById("color_" + i).value;  //色設定フォームのID（174行～181行）
+    }
+    //地形作成
+    var map = [];
+    var index = 0;
+    for (var y= 0; y < canvas.height; y+=size) {   //sizeを1辺とした正方形で区切ってキャンバスの幅と高さぶんループ
+       for (var x=0; x < canvas.width; x+=size) {
+           //高度を取得
+           var h = Math.floor((noise(x/(size*10), y/(size*10), z) + 1) * 4);    //noise()関数（26行から58行）－１～１の間のノイズを返す
+           //地形データを格納
+           map[index] = h;
+           index++;
+           //描画
+           context.fillStyle = color[h];            //塗りつぶし色は高度ｈによる
+           context.strokeStyle = "#999999";         //線の色はグレー
+           context.beginPath();
+           context.rect(x, y, size, size);          //sizeを1辺とした正方形を描く
+           context.fill();
+           context.stroke();
+       }
+    }
+
+    //地形データをJSON形式に変換
+    mapData = {"width": canvas.width/size, "height": canvas.height/size, "color": color, "map": map}
+
+}
+
+function saveMap() {
+    //JSONデータ→テキストデータ→BLOBに変換
+    mapDataString = JSON.stringify(mapData);
+    var blob = new Blob([mapDataString], {type: "text/plain"});
+    //名前を付けて保存（ダウンロード）
+    var filename = window.prompt("ファイル名を入力して下さい", "map.json");    //デフォルトのファイル名
+    if (filename != null) {
+        if (window.navigator.msSaveBlob) {
+            //msSaveBlobを使用できるブラウザ
+            window.navigator.msSaveBlob(blob, filename);                    //IEの場合
+        } else {
+             var a = document.createElement("a");                           //<a>要素を作成
+             a.href = URL.createObjectURL(blob);                            //リンク先に画像のＵＲＬをセット
+             a.download = filename;
+             document.body.appendChild(a);
+             a.click();                                                     //強制クリック
+             document.body.removeChild(a);                                  //<a>要素を削除
+        }
+    }
+}
+</script>
+</head>
+<body onload="init()">
+<p>地形ジェネレーター</p>
+サイズ: <input type= "radio" name="size" id="size_10" onclick="draw()">80x60
+<input type= "radio" name="size" id="size_20" onclick="draw()" checked>40x30
+<input type= "radio" name="size" id="size_40" onclick="draw()" >20x15
+<input type="button" value="新しい地形を作成" onclick="newMap()">
+<input type="button" value="地形データを保存" onclick="saveMap()">
+<hr>
+<input type="color" id="color_0" value="#0033CC" onchange="draw()">
+<input type="color" id="color_1" value="#0099FF" onchange="draw()">
+<input type="color" id="color_2" value="#009966" onchange="draw()">
+<input type="color" id="color_3" value="#339900" onchange="draw()">
+<input type="color" id="color_4" value="#336600" onchange="draw()">
+<input type="color" id="color_5" value="#CC9900" onchange="draw()">
+<input type="color" id="color_6" value="#996600" onchange="draw()">
+<input type="color" id="color_7" value="#993300" onchange="draw()">
+<hr>
+<canvas id="map" width="800" height="600"></canvas>
+</body>
+</html>
+
+
 
 
 
