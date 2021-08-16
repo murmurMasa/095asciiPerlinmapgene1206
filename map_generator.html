@@ -1,1 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>地形ジェネレーター</title>
+<script>
+var permutation = new Array(256);     //順列テーブル
+var p = new Array(512);               //順列テーブル2回分
+var canvas, context;                  //キャンバス
+var z;                                //ｚ値（地形作成時の乱数）
+var mapData;                          //地形データ（JSON形式）
+
+function initNoise() {
+    //順列テーブル（0～255の乱数）の作成
+    for (var i=0; i<256; i++) permutation[i] = i;
+    for (var i=255; i>0; i--) {
+        var j = Math.floor(Math.random()*i);
+        var temp = permutation[i];
+        permutation[i] = permutation[j];
+        permutation[j] = temp;          //配列permutaiton[]をシャッフルする
+    }
+    //順列テーブル2回分
+    p = permutation.concat(permutation); //配列を繋ぐ
+}
+
+function noise(x, y, z) {
+    //整数座標と小数点座標に分離
+    var xi = Math.floor(x);
+    var yi = Math.floor(y);
+    var zi = Math.floor(z);  //因数の小数点以下を切り捨てる
+    var xf = x - xi;
+    var yf = y - yi;
+    var zf = z - zi;        //因数の小数点以下部分を取り出す
+    //整数座標を0～255に制限
+    xi &= 255;
+    yi &= 255;
+    zi &= 255;    //ビット論理積　and 1111 1111 を計算
+    //フェード
+    var u = fade(xf);
+    var v = fade(yf);
+    var w = fade(zf);
+    //ハッシュ
+    var A = p[xi] + yi;
+    var AA = p[A] + zi;
+    var AB = p[A+1] + zi;
+    var B = p[xi+1] + yi;
+    var BA = p[B] + zi;
+    var BB = p[B+1] + zi;
+    
+}
+
+
+
+
+
+
+
+
+
 
